@@ -1,0 +1,19 @@
+{
+  "modelo": "Regresión logística",
+  "parametros": {
+    "clf__C": "1",
+    "vec__min_df": "1",
+    "vec__ngram_range": "(1, 2)"
+  },
+  "macro_f1_test": 0.6103,
+  "clases": [
+    "negativo",
+    "neutral",
+    "positivo"
+  ],
+  "n_train": 490,
+  "n_test": 123,
+  "python": "3.13.18",
+  "sklearn": "1.6.1",
+  "fecha": "2026-10-29"
+}

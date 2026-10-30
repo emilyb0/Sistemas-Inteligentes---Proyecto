@@ -1,0 +1,27 @@
+# entornos y cachés
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# DATOS: no se suben comentarios de estudiantes (solo el modelo)
+datos/
+data/
+*.csv
+*.xlsx
+*.xls
+*.parquet
+*.jsonl
+
+# secretos y configuración local
+.env
+.streamlit/secrets.toml
+
+# sistema / editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
