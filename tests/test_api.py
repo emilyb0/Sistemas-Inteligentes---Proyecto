@@ -5,15 +5,17 @@ from api.main import MAX_CARACTERES, MAX_TEXTOS, app
 
 
 @pytest.fixture(scope="module")
-def cliente():
-    with TestClient(app) as c:  # ejecuta el lifespan (carga del modelo)
+def cliente(version):
+    with TestClient(app) as c:  # ejecuta el lifespan (carga del modelo de la versión activa)
         yield c
 
 
-def test_health(cliente):
+def test_health(cliente, version):
     r = cliente.get("/health")
     assert r.status_code == 200
     assert r.json()["estado"] == "ok"
+    assert r.json()["version"] == version
+    assert r.json()["version_modelo"].startswith(version)
 
 
 def test_predict_ok(cliente):
@@ -69,15 +71,15 @@ def test_predict_campos_de_confianza(cliente):
     seguro = cliente.post("/predict", json={"texto": "Estoy muy contento, el curso fue muy gratificante y excelente"}).json()
     assert seguro["confianza_baja"] is False and seguro["advertencia"] is None
 
-    dudoso = cliente.post("/predict", json={"texto": "Odié el curso"}).json()
+    dudoso = cliente.post("/predict", json={"texto": "excelente"}).json()
     assert dudoso["confianza_baja"] is True
     assert isinstance(dudoso["advertencia"], str) and dudoso["advertencia"]
 
 
 def test_predict_batch_campos_de_confianza(cliente):
-    preds = cliente.post("/predict_batch", json={"textos": ["Odié el curso", "😀🔥"]}).json()["predicciones"]
+    preds = cliente.post("/predict_batch", json={"textos": ["😀🔥", "bien"]}).json()["predicciones"]
     assert all(p["confianza_baja"] is True for p in preds)
-    assert "pocas palabras" in preds[1]["advertencia"]
+    assert all("más detalle" in p["advertencia"] for p in preds)
 
 
 def test_esquema_openapi_incluye_campos_nuevos(cliente):
