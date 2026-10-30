@@ -1,0 +1,17 @@
+{
+  "version": "v2_embeddings",
+  "modelo": "Embeddings + Regresión logística",
+  "modelo_embeddings": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "clases": [
+    "negativo",
+    "neutral",
+    "positivo"
+  ],
+  "accuracy_test": 0.7398,
+  "macro_f1_test": 0.7451,
+  "preprocesamiento": "anonimizar + normalizar (minúsculas), igual que v1",
+  "python": "3.13.18",
+  "sklearn": "1.6.1",
+  "sentence_transformers": "5.7.0",
+  "fecha": "2026-10-30"
+}
