@@ -1,6 +1,14 @@
-# Versiones fijadas. scikit-learn DEBE coincidir con modelos/modelo_info.json (1.6.1)
-# o el Pipeline serializado puede comportarse distinto. Python recomendado: 3.13.
+# Versiones fijadas. scikit-learn y sentence-transformers DEBEN coincidir con los
+# modelo_info.json de modelos/ (v1 y v2 se entrenaron con scikit-learn 1.6.1).
+# Python recomendado: 3.13.
+
+# torch solo CPU (evita descargar CUDA en Streamlit Community Cloud)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.15.0+cpu
+
 scikit-learn==1.6.1
+sentence-transformers==5.7.0
+transformers==5.22.1
 joblib==1.6.0
 numpy==2.5.4
 scipy==1.18.1

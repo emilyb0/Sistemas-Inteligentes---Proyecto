@@ -107,8 +107,8 @@ async def error_validacion(request: Request, exc: RequestValidationError):
 @app.get("/health")
 def health():
     m = obtener_modelo()
-    return {"estado": "ok", "modelo_cargado": True, "version_modelo": m.version,
-            "umbral_confianza": UMBRAL_CONFIANZA}
+    return {"estado": "ok", "modelo_cargado": True, "version": m.version_id, "version_modelo": m.version,
+            "macro_f1_test": m.info.get("macro_f1_test"), "umbral_confianza": UMBRAL_CONFIANZA}
 
 
 @app.post("/predict", response_model=Prediccion)
