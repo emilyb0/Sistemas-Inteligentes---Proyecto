@@ -81,7 +81,9 @@ curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" \
 {
   "clase": "positivo",
   "probabilidades": {"negativo": 0.16, "neutral": 0.16, "positivo": 0.68},
-  "version_modelo": "modelo-2026-10-29-bc27692a"
+  "version_modelo": "modelo-2026-10-29-bc27692a",
+  "confianza_baja": false,
+  "advertencia": null
 }
 ```
 
@@ -93,6 +95,38 @@ Un texto vacío, con solo espacios o de más de 5000 caracteres (o una lista vac
 ```json
 {"detail": [{"campo": "texto", "mensaje": "El texto no puede estar vacío ni contener solo espacios."}]}
 ```
+
+## Confianza baja
+
+TF-IDF solo conoce las palabras que aparecieron en los 490 comentarios de entrenamiento e **ignora todas las
+demás**. Con un texto como "Odié el curso", la palabra "odié" no está en el vocabulario y solo quedan "el" y
+"curso", que no dicen nada de la polaridad. El modelo reparte entonces la probabilidad casi en partes iguales
+(27 % / 37 % / 35 %) y elige una clase casi al azar.
+
+Por eso cada predicción incluye `confianza_baja` (bool) y `advertencia` (texto o `null`). Una predicción se marca
+como de confianza baja si se cumple alguna de estas condiciones:
+
+1. el modelo reconoce **menos de 2 palabras** del comentario. En ese caso, la advertencia pide describir con más
+   detalle qué gustó o no gustó;
+2. la **probabilidad máxima es menor que el umbral** (0,50 por defecto). En ese caso, la advertencia dice que las
+   probabilidades de las clases son muy parecidas.
+
+En la app, el sello se ve atenuado con la palabra "INCIERTO" y aparece una nota con las palabras reconocidas.
+En el CSV se agrega la columna `confianza_baja`, y el resumen cuenta cuántos comentarios quedaron así.
+
+El umbral se cambia con la variable de entorno **`UMBRAL_CONFIANZA`** (un número entre 0 y 1), que se lee al
+iniciar:
+
+```bash
+# macOS / Linux
+UMBRAL_CONFIANZA=0.6 uvicorn api.main:app
+# Windows (PowerShell)
+$env:UMBRAL_CONFIANZA = "0.6"; streamlit run app/streamlit_app.py
+```
+
+En Streamlit Community Cloud se agrega como secreto: `UMBRAL_CONFIANZA = "0.6"`. Con tres clases, una
+probabilidad máxima cercana a 0,33 equivale a no saber nada. Subir el umbral marca más predicciones como dudosas;
+`GET /health` muestra el valor que está en uso.
 
 ## Ejecutar la app
 
@@ -106,7 +140,7 @@ La app carga el modelo directamente con `src/modelo.py`, así que **no necesita 
   como lo leyó el modelo (ya anonimizado y normalizado).
 - **Archivo CSV:** subes un CSV, eliges la columna de texto y clasificas todo. Ves el conteo y el porcentaje por
   clase con un gráfico, una vista previa, y puedes descargar el CSV con las columnas `clase`, `prob_negativo`,
-  `prob_neutral` y `prob_positivo`. Las filas vacías quedan como `sin_texto`.
+  `prob_neutral`, `prob_positivo` y `confianza_baja`. Las filas vacías quedan como `sin_texto`.
 
 ## Pruebas
 
@@ -119,6 +153,7 @@ Las pruebas verifican lo siguiente:
 - el modelo carga una sola vez;
 - un comentario positivo y uno negativo claros dan la clase esperada;
 - el texto vacío, solo emojis, muy largo o en inglés no rompe nada;
+- "Odié el curso" queda marcado con confianza baja y el umbral se lee de `UMBRAL_CONFIANZA`;
 - las probabilidades suman 1;
 - el hash incorrecto o una ruta fuera de `modelos/` se rechazan;
 - la API responde 200 y 422 donde corresponde.

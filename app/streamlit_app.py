@@ -16,7 +16,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from src.modelo import CLASES, obtener_modelo, palabras_reconocidas, predecir, predecir_lote
+from src.modelo import CLASES, contar_palabras, obtener_modelo, predecir, predecir_lote
 from src.preprocesamiento import preparar
 
 MAX_CARACTERES = 5000
@@ -78,8 +78,11 @@ def sello(resultado: dict | None) -> str:
         return """<div class="sello sello--vacio"><span class="sello-etq">pendiente</span>
                   <span class="sello-clase">sin calificar</span></div>"""
     c = resultado["clase"]
-    return f"""<div class="sello sello--{c}" role="img" aria-label="Clase: {c}">
-      <span class="sello-etq">calificado</span>
+    incierto = resultado.get("confianza_baja", False)
+    etiqueta = "incierto" if incierto else "calificado"
+    return f"""<div class="sello sello--{c}{' sello--incierto' if incierto else ''}" role="img"
+      aria-label="Clase: {c}{', confianza baja' if incierto else ''}">
+      <span class="sello-etq">{etiqueta}</span>
       <span class="sello-clase">{c}</span>
       <span class="sello-pie">confianza {pct(resultado["probabilidades"][c])}</span></div>"""
 
@@ -94,6 +97,15 @@ def barras(probabilidades: dict) -> str:
         for c, p in probabilidades.items()
     )
     return f'<div class="probs">{filas}</div>'
+
+
+def nota_confianza(resultado: dict, reconocidas: int, totales: int) -> str:
+    if not resultado.get("confianza_baja"):
+        return ""
+    return f"""<aside class="nota-aviso" role="note">
+      <p class="nota-aviso-titulo">Confianza baja</p>
+      <p class="nota-aviso-texto">{escape(resultado["advertencia"])}</p>
+      <p class="nota-aviso-cifra">Palabras reconocidas: {reconocidas} de {totales}</p></aside>"""
 
 
 tab_uno, tab_csv = st.tabs(["Un comentario", "Archivo CSV"])
@@ -122,7 +134,7 @@ with tab_uno:
                 st.session_state["resultado_uno"] = {
                     "res": predecir(texto),
                     "leido": preparar(texto),
-                    "reconocidas": palabras_reconocidas(texto),
+                    "palabras": contar_palabras(texto),
                 }
 
     with der:
@@ -133,12 +145,8 @@ with tab_uno:
                  '<p class="ayuda">El sello aparecerá aquí con la probabilidad de cada clase.</p></div>')
         else:
             res = guardado["res"]
-            aviso = ""
-            if guardado["reconocidas"] == 0:
-                aviso = ('<p class="anotacion"><b>Ojo.</b> Ninguna palabra del comentario está en el vocabulario '
-                         'del modelo (solo emojis, otro idioma o palabras nuevas). El resultado refleja solo la '
-                         'proporción base de las clases y no es confiable.</p>')
-            html(f"""<div class="hoja-resultado">{sello(res)}{barras(res["probabilidades"])}{aviso}
+            aviso = nota_confianza(res, *guardado["palabras"])
+            html(f"""<div class="hoja-resultado">{sello(res)}{aviso}{barras(res["probabilidades"])}
                 <div class="leido"><p class="rotulo">Así lo leyó el modelo</p>
                 <p class="mono">{escape(guardado["leido"]) or "∅"}</p></div></div>""")
 
@@ -189,8 +197,9 @@ with tab_csv:
         archivo = st.file_uploader("Archivo CSV", type=["csv"])
     with der:
         html("""<p class="rotulo">Qué vas a obtener</p>
-                <p class="ayuda">El mismo archivo con cuatro columnas nuevas: <code>clase</code>,
-                <code>prob_negativo</code>, <code>prob_neutral</code> y <code>prob_positivo</code>.
+                <p class="ayuda">El mismo archivo con cinco columnas nuevas: <code>clase</code>,
+                <code>prob_negativo</code>, <code>prob_neutral</code>, <code>prob_positivo</code> y
+                <code>confianza_baja</code>.
                 Las filas sin texto quedan marcadas como <code>sin_texto</code>.</p>""")
 
     if archivo is not None:
@@ -225,11 +234,13 @@ with tab_csv:
                 salida["clase"] = "sin_texto"
                 for c in CLASES:
                     salida[f"prob_{c}"] = float("nan")
+                salida["confianza_baja"] = pd.Series(pd.NA, index=salida.index, dtype="boolean")
                 resultados = predecir_lote(textos[hay_texto].tolist())
                 if resultados:
                     salida.loc[hay_texto, "clase"] = [r["clase"] for r in resultados]
                     for c in CLASES:
                         salida.loc[hay_texto, f"prob_{c}"] = [r["probabilidades"][c] for r in resultados]
+                    salida.loc[hay_texto, "confianza_baja"] = [r["confianza_baja"] for r in resultados]
             st.session_state["resultado_csv"] = {"clave": clave, "salida": salida, "nombre": archivo.name}
 
         guardado = st.session_state.get("resultado_csv")
@@ -250,20 +261,24 @@ with tab_csv:
                     for c, n, p in resumen.itertuples(index=False)
                 )
                 sin_texto = len(salida) - total
+                inciertos = int(clasificadas["confianza_baja"].sum())
                 html(f"""<p class="rotulo">Resumen</p>
                     <p class="cifra-grande">{num(total)}<span>comentarios calificados</span></p>
                     <table class="resumen" style="margin-top:1.2rem">
                       <thead><tr><th>clase</th><th class="num">conteo</th><th class="num">%</th></tr></thead>
                       <tbody>{filas}</tbody>
                       <tfoot><tr><td colspan="3">{num(sin_texto)} fila(s) sin texto no se clasificaron.</td></tr></tfoot>
-                    </table>""")
+                    </table>
+                    <p class="resumen-aviso"><span class="mono">{num(inciertos)}</span> comentario(s) con
+                    <b>confianza baja</b> ({pct(inciertos / total) if total else pct(0)}). Revísalos a mano
+                    antes de sacar conclusiones.</p>""")
             with r2:
                 html('<p class="rotulo">Distribución por clase</p>')
                 st.altair_chart(grafico_resumen(resumen), width="stretch", theme=None)
 
             html('<p class="rotulo" style="margin-top:1.8rem">Vista previa · primeras 200 filas</p>')
             st.dataframe(
-                salida[[columna, "clase", *(f"prob_{c}" for c in CLASES)]].head(200),
+                salida[[columna, "clase", *(f"prob_{c}" for c in CLASES), "confianza_baja"]].head(200),
                 hide_index=True,
                 column_config={f"prob_{c}": st.column_config.NumberColumn(f"prob_{c}", format="%.3f")
                                for c in CLASES},

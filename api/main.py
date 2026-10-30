@@ -9,7 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
-from src.modelo import obtener_modelo, predecir, predecir_lote
+from src.modelo import UMBRAL_CONFIANZA, obtener_modelo, predecir, predecir_lote
 
 MAX_CARACTERES = 5000
 MAX_TEXTOS = 1000
@@ -60,6 +60,9 @@ class Prediccion(BaseModel):
     clase: str
     probabilidades: Probabilidades
     version_modelo: str
+    confianza_baja: bool = Field(..., description="True si la probabilidad máxima es menor que el umbral "
+                                                  "o el modelo reconoce muy pocas palabras del texto")
+    advertencia: str | None = Field(None, description="Explicación en español cuando confianza_baja es True")
 
 
 class PrediccionLote(BaseModel):
@@ -104,7 +107,8 @@ async def error_validacion(request: Request, exc: RequestValidationError):
 @app.get("/health")
 def health():
     m = obtener_modelo()
-    return {"estado": "ok", "modelo_cargado": True, "version_modelo": m.version}
+    return {"estado": "ok", "modelo_cargado": True, "version_modelo": m.version,
+            "umbral_confianza": UMBRAL_CONFIANZA}
 
 
 @app.post("/predict", response_model=Prediccion)

@@ -6,6 +6,9 @@
   código, así que el hash se verifica ANTES de deserializar.
 - La ruta se toma de la variable de entorno ``MODELO_PATH`` (por defecto
   ``./modelos/modelo.joblib``) para poder cambiar o revertir de versión.
+- Una predicción es de confianza baja si su probabilidad máxima es menor que
+  ``UMBRAL_CONFIANZA`` (variable de entorno del mismo nombre, por defecto 0.50) o
+  si el modelo reconoce menos de ``MIN_PALABRAS_RECONOCIDAS`` palabras del texto.
 """
 from __future__ import annotations
 
@@ -30,6 +33,30 @@ RAIZ = Path(__file__).resolve().parents[1]
 DIR_MODELOS = RAIZ / "modelos"
 RUTA_POR_DEFECTO = "./modelos/modelo.joblib"
 CLASES = ("negativo", "neutral", "positivo")
+MIN_PALABRAS_RECONOCIDAS = 2
+
+AVISO_POCAS_PALABRAS = (
+    "El modelo reconoce muy pocas palabras de este comentario, así que la clasificación no es confiable. "
+    "Intenta describir con más detalle qué te gustó o no te gustó del curso."
+)
+AVISO_PROBABILIDAD_BAJA = "El modelo no está seguro: las probabilidades de las clases son muy parecidas."
+
+
+def leer_umbral(valor_por_defecto: float = 0.50) -> float:
+    """Umbral de confianza desde la variable de entorno UMBRAL_CONFIANZA."""
+    crudo = os.environ.get("UMBRAL_CONFIANZA")
+    if crudo is None or not crudo.strip():
+        return valor_por_defecto
+    try:
+        umbral = float(crudo.replace(",", "."))
+    except ValueError:
+        raise ValueError(f"UMBRAL_CONFIANZA debe ser un número entre 0 y 1; se recibió {crudo!r}.") from None
+    if not 0.0 <= umbral <= 1.0:
+        raise ValueError(f"UMBRAL_CONFIANZA debe estar entre 0 y 1; se recibió {umbral}.")
+    return umbral
+
+
+UMBRAL_CONFIANZA = leer_umbral()
 
 
 @dataclass(frozen=True)
@@ -108,11 +135,29 @@ def obtener_modelo() -> ModeloCargado:
     return cargar_modelo(ruta_configurada())
 
 
-def _resultado(clase: str, probas, version: str) -> dict:
+def _contar_palabras(preparado: str) -> tuple[int, int]:
+    """(palabras reconocidas por el vocabulario, palabras totales) de un texto ya preparado."""
+    vec = obtener_modelo().pipeline.steps[0][1]
+    palabras = vec.build_tokenizer()(preparado)
+    return sum(p in vec.vocabulary_ for p in palabras), len(palabras)
+
+
+def _advertencia(prob_max: float, reconocidas: int) -> str | None:
+    if reconocidas < MIN_PALABRAS_RECONOCIDAS:
+        return AVISO_POCAS_PALABRAS
+    if prob_max < UMBRAL_CONFIANZA:
+        return AVISO_PROBABILIDAD_BAJA
+    return None
+
+
+def _resultado(probas, reconocidas: int, version: str) -> dict:
+    advertencia = _advertencia(float(probas.max()), reconocidas)
     return {
-        "clase": str(clase),
+        "clase": CLASES[probas.argmax()],
         "probabilidades": {c: float(p) for c, p in zip(CLASES, probas)},
         "version_modelo": version,
+        "confianza_baja": advertencia is not None,
+        "advertencia": advertencia,
     }
 
 
@@ -122,15 +167,20 @@ def predecir_lote(textos: list[str]) -> list[dict]:
     if not preparados:
         return []
     probas = m.pipeline.predict_proba(preparados)
-    return [_resultado(CLASES[p.argmax()], p, m.version) for p in probas]
+    return [_resultado(p, _contar_palabras(t)[0], m.version) for p, t in zip(probas, preparados)]
 
 
 def predecir(texto: str) -> dict:
-    """Devuelve {"clase", "probabilidades": {negativo, neutral, positivo}, "version_modelo"}."""
+    """Devuelve {"clase", "probabilidades": {negativo, neutral, positivo}, "version_modelo",
+    "confianza_baja", "advertencia"}."""
     return predecir_lote([texto])[0]
 
 
 def palabras_reconocidas(texto: str) -> int:
-    """Cuántos términos del texto (ya preparado) están en el vocabulario del modelo."""
-    vec = obtener_modelo().pipeline.steps[0][1]
-    return int(vec.transform([preparar(str(texto))]).nnz)
+    """Cuántas palabras del texto (tras preparar) están en el vocabulario del modelo."""
+    return contar_palabras(texto)[0]
+
+
+def contar_palabras(texto: str) -> tuple[int, int]:
+    """(reconocidas, totales) con el mismo tokenizador del vectorizador."""
+    return _contar_palabras(preparar("" if texto is None else str(texto)))

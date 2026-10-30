@@ -204,10 +204,43 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover,
   -webkit-mask-image: none; mask-image: none; animation: none;
 }
 .sello--vacio .sello-clase { font-size: 1.5rem; font-weight: 400; font-style: italic; text-transform: none; letter-spacing: 0; }
+/* predicción de confianza baja: tinta más clara y menos opaca */
+.sello--incierto {
+  --c-tenue: color-mix(in srgb, var(--c) 55%, var(--papel));
+  color: var(--c-tenue); border-color: var(--c-tenue); opacity: .7;
+  animation-name: sellar-tenue;
+}
+.sello--incierto .sello-etq { font-weight: 600; letter-spacing: .38em; }
+@keyframes sellar-tenue {
+  from { opacity: 0; transform: rotate(-12deg) scale(1.35); }
+  to   { opacity: .7; transform: rotate(-6deg) scale(1); }
+}
 @keyframes sellar {
   from { opacity: 0; transform: rotate(-12deg) scale(1.35); }
   to   { opacity: 1; transform: rotate(-6deg) scale(1); }
 }
+
+/* ---------- Nota al margen de confianza baja ---------- */
+.nota-aviso {
+  max-width: 30rem; margin: -.4rem 0 1.6rem; padding: .75rem 1rem .8rem;
+  border-left: 2px solid var(--terracota); background: rgba(196, 84, 45, .07);
+  color: var(--terracota-texto);
+}
+.nota-aviso p { margin: 0; }
+.nota-aviso-titulo {
+  font-family: var(--mono); font-size: .72rem; font-weight: 600; letter-spacing: .14em;
+  text-transform: uppercase; margin-bottom: .35rem !important;
+}
+.nota-aviso-texto { font-size: .93rem; line-height: 1.5; }
+.nota-aviso-cifra {
+  font-family: var(--mono); font-size: .8rem; font-variant-numeric: tabular-nums;
+  margin-top: .55rem !important; padding-top: .45rem; border-top: 1px dotted rgba(163, 64, 28, .45);
+}
+.resumen-aviso {
+  margin: 1rem 0 0; padding-left: .8rem; border-left: 2px solid var(--terracota);
+  font-size: .9rem; line-height: 1.5; color: var(--terracota-texto);
+}
+.resumen-aviso b { font-weight: 600; }
 
 /* ---------- Probabilidades: trazos de tinta ---------- */
 .probs { display: grid; gap: .85rem; max-width: 30rem; }

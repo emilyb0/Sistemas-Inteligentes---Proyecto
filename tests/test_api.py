@@ -63,3 +63,23 @@ def test_predict_batch_422(cliente, cuerpo, fragmento):
 
 def test_texto_en_el_limite_de_caracteres(cliente):
     assert cliente.post("/predict", json={"texto": "a" * MAX_CARACTERES}).status_code == 200
+
+
+def test_predict_campos_de_confianza(cliente):
+    seguro = cliente.post("/predict", json={"texto": "Estoy muy contento, el curso fue muy gratificante y excelente"}).json()
+    assert seguro["confianza_baja"] is False and seguro["advertencia"] is None
+
+    dudoso = cliente.post("/predict", json={"texto": "Odié el curso"}).json()
+    assert dudoso["confianza_baja"] is True
+    assert isinstance(dudoso["advertencia"], str) and dudoso["advertencia"]
+
+
+def test_predict_batch_campos_de_confianza(cliente):
+    preds = cliente.post("/predict_batch", json={"textos": ["Odié el curso", "😀🔥"]}).json()["predicciones"]
+    assert all(p["confianza_baja"] is True for p in preds)
+    assert "pocas palabras" in preds[1]["advertencia"]
+
+
+def test_esquema_openapi_incluye_campos_nuevos(cliente):
+    props = cliente.get("/openapi.json").json()["components"]["schemas"]["Prediccion"]["properties"]
+    assert {"confianza_baja", "advertencia"} <= set(props)
