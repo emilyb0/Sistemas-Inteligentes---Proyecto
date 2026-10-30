@@ -16,7 +16,8 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from src.modelo import CLASES, contar_palabras, obtener_modelo, predecir, predecir_lote
+from src.modelo import CLASES, obtener_modelo, predecir, predecir_lote
+from src.modelo import nota_confianza as detalle_modelo
 from src.preprocesamiento import preparar
 
 MAX_CARACTERES = 5000
@@ -62,7 +63,7 @@ html(f"""
   </div>
   <aside class="nota-margen">
     <dl>
-      <dt>modelo</dt><dd>TF-IDF + regresión logística</dd>
+      <dt>modelo</dt><dd>{escape(m.info.get("modelo", "—"))}</dd>
       <dt>versión</dt><dd class="mono">{escape(m.version)}</dd>
       <dt>F1 macro</dt><dd class="mono">{f"{f1:.3f}".replace(".", ",") if f1 is not None else "—"} <span style="color:var(--tinta-suave)">(prueba)</span></dd>
       <dt>clases</dt><dd class="clases-leyenda">{"".join(f'<span class="punto punto--{c}">{c}</span>' for c in CLASES)}</dd>
@@ -99,13 +100,13 @@ def barras(probabilidades: dict) -> str:
     return f'<div class="probs">{filas}</div>'
 
 
-def nota_confianza(resultado: dict, reconocidas: int, totales: int) -> str:
+def nota_confianza(resultado: dict, detalle: str) -> str:
     if not resultado.get("confianza_baja"):
         return ""
     return f"""<aside class="nota-aviso" role="note">
       <p class="nota-aviso-titulo">Confianza baja</p>
       <p class="nota-aviso-texto">{escape(resultado["advertencia"])}</p>
-      <p class="nota-aviso-cifra">Palabras reconocidas: {reconocidas} de {totales}</p></aside>"""
+      <p class="nota-aviso-cifra">{escape(detalle)}</p></aside>"""
 
 
 tab_uno, tab_csv = st.tabs(["Un comentario", "Archivo CSV"])
@@ -134,7 +135,7 @@ with tab_uno:
                 st.session_state["resultado_uno"] = {
                     "res": predecir(texto),
                     "leido": preparar(texto),
-                    "palabras": contar_palabras(texto),
+                    "detalle": detalle_modelo(texto),
                 }
 
     with der:
@@ -145,7 +146,7 @@ with tab_uno:
                  '<p class="ayuda">El sello aparecerá aquí con la probabilidad de cada clase.</p></div>')
         else:
             res = guardado["res"]
-            aviso = nota_confianza(res, *guardado["palabras"])
+            aviso = nota_confianza(res, guardado["detalle"])
             html(f"""<div class="hoja-resultado">{sello(res)}{aviso}{barras(res["probabilidades"])}
                 <div class="leido"><p class="rotulo">Así lo leyó el modelo</p>
                 <p class="mono">{escape(guardado["leido"]) or "∅"}</p></div></div>""")
