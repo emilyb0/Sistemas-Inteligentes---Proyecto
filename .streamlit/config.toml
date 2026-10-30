@@ -1,0 +1,32 @@
+# Tema "cuaderno de evaluación": papel cálido, tinta azul oscura, acento terracota.
+# El resto del diseño está en app/estilos.css.
+
+[theme]
+base = "light"
+primaryColor = "#C4542D"
+backgroundColor = "#F4EFE6"
+secondaryBackgroundColor = "#EBE4D7"
+textColor = "#1B2A41"
+linkColor = "#A9441F"
+borderColor = "#CFC5B3"
+dataframeBorderColor = "#D8CFBF"
+dataframeHeaderBackgroundColor = "#EBE4D7"
+showWidgetBorder = true
+baseRadius = "2px"
+buttonRadius = "2px"
+baseFontSize = 16
+font = "IBM Plex Sans:https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap"
+headingFont = "Fraunces:https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..600&display=swap"
+codeFont = "IBM Plex Mono:https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+codeBackgroundColor = "#EBE4D7"
+chartCategoricalColors = ["#C4542D", "#8A857C", "#6B7B3A"]
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = "none"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+maxUploadSize = 50
