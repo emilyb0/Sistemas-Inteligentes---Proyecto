@@ -1,6 +1,6 @@
 # Polaridad de comentarios estudiantiles
 
-Proyecto de la materia **Sistemas Inteligentes**, por **Emily Bonilla** y **Santiago Grande**.
+Proyecto de la materia **Sistemas Inteligentes**, por **Emily Bonilla**, **Santiago Grande** y **Daniel Posada**
 
 Este proyecto clasifica los comentarios que los estudiantes escriben sobre sus cursos en **negativo**, **neutral**
 o **positivo**. El clasificador se ofrece de dos formas:
