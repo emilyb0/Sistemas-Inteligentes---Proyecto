@@ -61,7 +61,7 @@ html(f"""
   <div>
     <p class="sobretitulo">Sistemas Inteligentes · Proyecto</p>
     <h1 class="titulo">Polaridad de los comentarios <em>estudiantiles</em></h1>
-    <p class="autores">Cuaderno de evaluación por <b>Emily Bonilla</b> y <b>Santiago Grande</b></p>
+    <p class="autores">Cuaderno de evaluación por <b>Emily Bonilla</b>, <b>Santiago Grande</b> y <b>Daniel Posada<b>.</p>
   </div>
   <aside class="nota-margen">
     <dl>
