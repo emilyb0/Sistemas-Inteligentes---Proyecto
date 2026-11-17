@@ -1,0 +1,19 @@
+{
+  "fecha_utc": "2026-11-17T01:50:20.187725+00:00",
+  "version_modelo": "v2_embeddings-2026-11-17-14899a9d",
+  "sha256_modelo": "14899a9df17e3f479789ad21e9d4a2662d0c0bef8665b3d0d7c94d76494e182d",
+  "python": "3.13.15",
+  "plataforma": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+  "fuente": "5_frases_de_ejemplo_repetidas",
+  "n": 100,
+  "segundos_carga_artefacto": 5.98150937399987,
+  "segundos_primera_prediccion_con_carga_encoder": 1.7862288770002124,
+  "segundos_primera_respuesta_aproximada": 7.7677382510000825,
+  "latencia_individual_ms_promedio": 92.09155129995452,
+  "latencia_individual_ms_mediana": 92.41592799980936,
+  "latencia_individual_ms_p95": 94.8656390000906,
+  "tiempo_lote_ms_mediana_5_repeticiones": 732.4415639996005,
+  "tiempo_lote_ms_p95_5_repeticiones": 739.5376260001285,
+  "tiempo_lote_ms_por_comentario": 7.324415639996005,
+  "nota": "Primera predicción puede cargar/descargar encoder. Estado estable separado de carga; CPU local. No se almacena texto."
+}

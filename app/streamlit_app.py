@@ -4,6 +4,7 @@ Ejecutar desde la raíz del repositorio:  streamlit run app/streamlit_app.py
 Usa src/modelo.py directamente (no necesita la API).
 """
 import io
+import json
 import sys
 from html import escape
 from pathlib import Path
@@ -19,6 +20,7 @@ import streamlit as st
 from src.modelo import CLASES, obtener_modelo, predecir, predecir_lote
 from src.modelo import nota_confianza as detalle_modelo
 from src.preprocesamiento import preparar
+from src.monitoreo import distribuciones, evaluar_drift
 
 MAX_CARACTERES = 5000
 COLORES = {"negativo": "#C4542D", "neutral": "#8A857C", "positivo": "#6B7B3A"}
@@ -134,7 +136,7 @@ with tab_uno:
             else:
                 st.session_state["resultado_uno"] = {
                     "res": predecir(texto),
-                    "leido": preparar(texto),
+                    "leido": m.preparar_para_aviso([texto])[0] if hasattr(m, "preparar_para_aviso") else preparar(texto),
                     "detalle": detalle_modelo(texto),
                 }
 
@@ -276,6 +278,30 @@ with tab_csv:
             with r2:
                 html('<p class="rotulo">Distribución por clase</p>')
                 st.altair_chart(grafico_resumen(resumen), width="stretch", theme=None)
+
+            # Drift agregado: compara SOLO contra la referencia del MISMO binario.
+            referencia_drift = m.ruta.parent / "drift_referencia.json"
+            if m.version_id == "v2_embeddings" and referencia_drift.is_file():
+                try:
+                    referencia = json.loads(referencia_drift.read_text(encoding="utf-8"))
+                    if referencia.get("sha256_modelo") != m.sha256:
+                        st.warning("La referencia de drift corresponde a otro modelo; no se calcula el indicador.")
+                    else:
+                        originales = df.loc[clasificadas.index, columna].fillna("").astype(str).tolist()
+                        procesados = m.preparar_para_aviso(originales)
+                        actual = distribuciones(procesados, clasificadas["clase"].tolist())
+                        diagnostico = evaluar_drift(referencia, actual)
+                        with st.expander("Monitoreo de drift (distribución de predicciones y longitud)"):
+                            st.write(f"Estado: **{diagnostico['estado']}** · {diagnostico['n']} comentarios")
+                            if diagnostico["estado"] == "muestra_insuficiente":
+                                st.caption("Muestra insuficiente: mínimo 50 comentarios para interpretar PSI.")
+                            else:
+                                d1, d2 = st.columns(2)
+                                d1.metric("PSI de clases", f"{diagnostico['psi_clases']:.3f}")
+                                d2.metric("PSI de longitud", f"{diagnostico['psi_longitud']:.3f}")
+                                st.caption("Umbral orientativo: PSI ≥ 0.20. No mide accuracy ni drift semántico completo.")
+                except (OSError, ValueError, KeyError, TypeError) as exc:
+                    st.warning(f"No se pudo calcular el monitoreo de drift: {exc}")
 
             html('<p class="rotulo" style="margin-top:1.8rem">Vista previa · primeras 200 filas</p>')
             st.dataframe(

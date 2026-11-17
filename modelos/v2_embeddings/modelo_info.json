@@ -1,17 +1,93 @@
 {
   "version": "v2_embeddings",
-  "modelo": "Embeddings + Regresión logística",
+  "modelo": "Pipeline de limpieza + embeddings + regresión logística",
+  "C": 0.3,
+  "C_optimo_por_CV": 0.3,
+  "macro_f1_cv_optimo": 0.672572907235925,
+  "macro_f1_cv_C_elegido": 0.672572907235925,
   "modelo_embeddings": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "revision_embeddings": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42",
+  "modo_preprocesamiento": "corregido",
   "clases": [
     "negativo",
     "neutral",
     "positivo"
   ],
-  "accuracy_test": 0.7398,
-  "macro_f1_test": 0.7451,
-  "preprocesamiento": "anonimizar + normalizar (minúsculas), igual que v1",
-  "python": "3.13.18",
+  "n_train": 490,
+  "n_test": 123,
+  "distribucion_train": {
+    "negativo": 163,
+    "positivo": 121,
+    "neutral": 206
+  },
+  "distribucion_test": {
+    "neutral": 52,
+    "positivo": 30,
+    "negativo": 41
+  },
+  "semilla": 42,
+  "csv": "comentarios_limpio_ids_ok.csv",
+  "sha256_dataset": "7ef215fcfcd62f6d8c80155667a6b83874efc7fc7087b1d1456838247588f146",
+  "sha256_modelo": "14899a9df17e3f479789ad21e9d4a2662d0c0bef8665b3d0d7c94d76494e182d",
+  "python": "3.13.15",
   "sklearn": "1.6.1",
   "sentence_transformers": "5.7.0",
-  "fecha": "2026-10-30"
+  "fecha": "2026-11-17",
+  "advertencia_metodologica": "El test de 123 comentarios ya se exploró en versiones previas: esta evaluación no representa un holdout completamente virgen.",
+  "accuracy_test": 0.7317073170731707,
+  "macro_f1_test": 0.737231182795699,
+  "matriz_confusion": [
+    [
+      33,
+      6,
+      2
+    ],
+    [
+      13,
+      33,
+      6
+    ],
+    [
+      1,
+      5,
+      24
+    ]
+  ],
+  "reporte_test": {
+    "negativo": {
+      "precision": 0.7021276595744681,
+      "recall": 0.8048780487804879,
+      "f1-score": 0.75,
+      "support": 41.0
+    },
+    "neutral": {
+      "precision": 0.75,
+      "recall": 0.6346153846153846,
+      "f1-score": 0.6875,
+      "support": 52.0
+    },
+    "positivo": {
+      "precision": 0.75,
+      "recall": 0.8,
+      "f1-score": 0.7741935483870968,
+      "support": 30.0
+    },
+    "accuracy": 0.7317073170731707,
+    "macro avg": {
+      "precision": 0.7340425531914893,
+      "recall": 0.7464978111319575,
+      "f1-score": 0.737231182795699,
+      "support": 123.0
+    },
+    "weighted avg": {
+      "precision": 0.7340425531914894,
+      "recall": 0.7317073170731707,
+      "f1-score": 0.7294781012326251,
+      "support": 123.0
+    }
+  },
+  "ic_95_macro_f1_bootstrap": [
+    0.6567941068945814,
+    0.8140925874663644
+  ]
 }

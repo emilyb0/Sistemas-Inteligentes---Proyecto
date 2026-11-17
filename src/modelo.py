@@ -2,9 +2,9 @@
 
 Versiones (cada una en su carpeta de ``modelos/``):
 - ``v1_tfidf``: Pipeline TfidfVectorizer + LogisticRegression (``modelo.joblib``).
-- ``v2_embeddings``: embeddings de sentence-transformers + LogisticRegression
-  (``clasificador.joblib``). El modelo de embeddings se descarga de Hugging Face
-  la primera vez; no está en el repositorio.
+- ``v2_embeddings``: acepta la versión histórica (``clasificador.joblib``) y el
+  Pipeline de limpieza + embeddings + clasificador (``modelo.joblib``).
+  El encoder se descarga desde Hugging Face cuando no está en caché.
 
 - La versión se elige con la variable de entorno ``MODELO_VERSION`` (por defecto
   ``v2_embeddings``) y se carga una sola vez por proceso. ``MODELO_PATH`` permite,
@@ -40,7 +40,8 @@ log = logging.getLogger(__name__)
 RAIZ = Path(__file__).resolve().parents[1]
 DIR_MODELOS = RAIZ / "modelos"
 CLASES = ("negativo", "neutral", "positivo")
-ARCHIVOS = {"v1_tfidf": "modelo.joblib", "v2_embeddings": "clasificador.joblib"}
+ARCHIVOS = {"v1_tfidf": "modelo.joblib", "v2_embeddings": "clasificador.joblib"}  # v2 legado
+ARCHIVO_PIPELINE_V2 = "modelo.joblib"
 VERSIONES = tuple(ARCHIVOS)
 VERSION_POR_DEFECTO = "v2_embeddings"
 
@@ -128,11 +129,17 @@ class ModeloEmbeddings(ModeloBase):
         self.clasificador = clasificador
         self.codificador = codificador
 
-    def predecir_proba(self, textos_preparados):
-        # encode() por defecto (sin normalizar), igual que en el entrenamiento
+    def predecir_proba(self, textos):
+        if self.codificador is None:  # Pipeline: incluye limpieza y embeddings
+            return self.clasificador.predict_proba(textos)
         embeddings = self.codificador.encode(
-            textos_preparados, batch_size=64, convert_to_numpy=True, show_progress_bar=False)
+            textos, batch_size=64, convert_to_numpy=True, show_progress_bar=False)
         return self.clasificador.predict_proba(embeddings)
+
+    def preparar_para_aviso(self, textos):
+        if self.codificador is None:
+            return self.clasificador.named_steps["limpieza"].transform(textos)
+        return [preparar(t) for t in textos]
 
     def aviso_texto(self, preparado):
         return AVISO_TEXTO_CORTO if len(re.findall(r"\w+", preparado)) < MIN_PALABRAS_TEXTO else None
@@ -152,7 +159,12 @@ def version_configurada() -> str:
 def ruta_configurada(version: str | None = None) -> Path:
     """Ruta del .joblib: MODELO_PATH si existe; si no, el archivo de la versión. Relativa a la raíz del repo."""
     version = version or version_configurada()
-    ruta = Path(os.environ.get("MODELO_PATH") or Path("modelos") / version / ARCHIVOS[version])
+    if os.environ.get("MODELO_PATH"):
+        ruta = Path(os.environ["MODELO_PATH"])
+    elif version == "v2_embeddings" and (DIR_MODELOS / version / ARCHIVO_PIPELINE_V2).is_file():
+        ruta = DIR_MODELOS / version / ARCHIVO_PIPELINE_V2
+    else:
+        ruta = DIR_MODELOS / version / ARCHIVOS[version]
     return (ruta if ruta.is_absolute() else RAIZ / ruta).resolve()
 
 
@@ -192,6 +204,8 @@ def _verificar(ruta: Path, dir_confianza: Path) -> tuple[str, dict]:
     ruta_info = ruta.parent / "modelo_info.json"
     if ruta_info.is_file():
         info = json.loads(ruta_info.read_text(encoding="utf-8"))
+        if info.get("sha256_modelo") and info["sha256_modelo"] != real:
+            raise ValueError("El SHA-256 de modelo_info.json no coincide con el modelo.")
         if info.get("sklearn") and info["sklearn"] != sklearn.__version__:
             raise RuntimeError(
                 f"El modelo se entrenó con scikit-learn {info['sklearn']} y está instalada la "
@@ -241,13 +255,30 @@ def cargar_modelo(ruta: Path, version: str = "v1_tfidf", dir_confianza: Path = D
         modelo = ModeloTfidf(objeto, ruta=ruta, sha256=sha, info=info)
     else:
         from sklearn.linear_model import LogisticRegression
-        if not isinstance(objeto, LogisticRegression):
-            raise TypeError(f"{ruta.name} no contiene una LogisticRegression.")
-        codificador = _codificador(info["modelo_embeddings"])
-        dim = codificador.get_embedding_dimension()
-        if dim != objeto.n_features_in_:
-            raise ValueError(f"El clasificador espera {objeto.n_features_in_} dimensiones y los embeddings tienen {dim}.")
-        modelo = ModeloEmbeddings(objeto, codificador, ruta=ruta, sha256=sha, info=info)
+        from sklearn.pipeline import Pipeline
+        if isinstance(objeto, Pipeline):
+            from src.embeddings_pipeline import PrepararComentarios, VectorizadorEmbeddings
+            if list(objeto.named_steps) != ["limpieza", "embeddings", "clf"]:
+                raise TypeError("El Pipeline v2 debe contener limpieza, embeddings y clf.")
+            if not isinstance(objeto.named_steps["limpieza"], PrepararComentarios):
+                raise TypeError("El paso limpieza del Pipeline v2 no es válido.")
+            encoder = objeto.named_steps["embeddings"]
+            clasificador = objeto.named_steps["clf"]
+            if not isinstance(encoder, VectorizadorEmbeddings) or not isinstance(clasificador, LogisticRegression):
+                raise TypeError("Los pasos embeddings o clf del Pipeline v2 no son válidos.")
+            if encoder.nombre_modelo != info["modelo_embeddings"] or encoder.revision != info.get("revision_embeddings"):
+                raise ValueError("La configuración de embeddings difiere de modelo_info.json.")
+            if info.get("C") is not None and abs(float(info["C"]) - clasificador.C) > 1e-12:
+                raise ValueError("El parámetro C difiere de modelo_info.json.")
+            modelo = ModeloEmbeddings(objeto, None, ruta=ruta, sha256=sha, info=info)
+        elif isinstance(objeto, LogisticRegression):  # compatibilidad con v2 anterior
+            codificador = _codificador(info["modelo_embeddings"])
+            dim = codificador.get_embedding_dimension()
+            if dim != objeto.n_features_in_:
+                raise ValueError(f"El clasificador espera {objeto.n_features_in_} dimensiones y los embeddings tienen {dim}.")
+            modelo = ModeloEmbeddings(objeto, codificador, ruta=ruta, sha256=sha, info=info)
+        else:
+            raise TypeError(f"{ruta.name} no contiene un Pipeline v2 ni una LogisticRegression.")
 
     log.info("Modelo cargado: %s (%s)", ruta, modelo.version)
     return modelo
@@ -287,10 +318,16 @@ def _resultado(modelo: ModeloBase, probas, preparado: str) -> dict:
 
 def predecir_lote(textos: list[str]) -> list[dict]:
     m = obtener_modelo()
-    preparados = [preparar("" if t is None else str(t)) for t in textos]
-    if not preparados:
+    originales = ["" if t is None else str(t) for t in textos]
+    if not originales:
         return []
-    probas = m.predecir_proba(preparados)
+    if isinstance(m, ModeloEmbeddings):
+        preparados = m.preparar_para_aviso(originales)
+        entrada = originales if m.codificador is None else preparados
+    else:
+        preparados = [preparar(t) for t in originales]
+        entrada = preparados
+    probas = m.predecir_proba(entrada)
     return [_resultado(m, p, t) for p, t in zip(probas, preparados)]
 
 

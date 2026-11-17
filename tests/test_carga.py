@@ -1,4 +1,4 @@
-"""Carga segura, selección de versión y umbral (no dependen de la versión activa)."""
+"""Carga segura, selección de versión y umbral (admite v2 legado o Pipeline)."""
 import os
 import shutil
 import subprocess
@@ -13,10 +13,12 @@ from src.modelo import ARCHIVOS, DIR_MODELOS, VERSIONES, cargar_modelo, leer_umb
 @pytest.mark.parametrize("version", VERSIONES)
 def test_archivos_de_cada_version_y_hash_valido(version):
     carpeta = DIR_MODELOS / version
-    for nombre in (ARCHIVOS[version], "modelo.sha256", "modelo_info.json"):
+    ruta = modelo.ruta_configurada(version)
+    assert ruta.parent == carpeta.resolve()
+    for nombre in (ruta.name, "modelo.sha256", "modelo_info.json"):
         assert (carpeta / nombre).is_file(), nombre
     esperado, archivo = (carpeta / "modelo.sha256").read_text(encoding="utf-8").split()
-    assert archivo == ARCHIVOS[version]
+    assert archivo == ruta.name
     assert modelo.calcular_sha256(carpeta / archivo) == esperado
 
 
@@ -54,7 +56,8 @@ def test_version_por_defecto_es_v2(monkeypatch):
     monkeypatch.delenv("MODELO_VERSION", raising=False)
     monkeypatch.delenv("MODELO_PATH", raising=False)
     assert modelo.version_configurada() == "v2_embeddings"
-    assert modelo.ruta_configurada() == (DIR_MODELOS / "v2_embeddings" / "clasificador.joblib").resolve()
+    archivo = modelo.ARCHIVO_PIPELINE_V2 if (DIR_MODELOS / "v2_embeddings" / modelo.ARCHIVO_PIPELINE_V2).is_file() else ARCHIVOS["v2_embeddings"]
+    assert modelo.ruta_configurada() == (DIR_MODELOS / "v2_embeddings" / archivo).resolve()
 
 
 def test_modelo_version_desde_variable_de_entorno(monkeypatch):
@@ -75,7 +78,12 @@ def test_modelo_path_sobrescribe_la_ruta(monkeypatch):
     assert modelo.ruta_configurada() == (DIR_MODELOS / "v1_tfidf" / "otro.joblib").resolve()
 
 
-# ------------------------------------------------------------ umbral
+@pytest.mark.parametrize("value", ["0", "1"])
+def test_umbral_limites(monkeypatch, value):
+    monkeypatch.setenv("UMBRAL_CONFIANZA", value)
+    assert leer_umbral() == float(value)
+
+
 def test_umbral_por_defecto(monkeypatch):
     monkeypatch.delenv("UMBRAL_CONFIANZA", raising=False)
     assert leer_umbral() == 0.50

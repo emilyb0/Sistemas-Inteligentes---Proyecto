@@ -1,0 +1,27 @@
+{
+  "modelo": "v2_embeddings-2026-11-17-14899a9d",
+  "referencia": "modelos/v2_embeddings_candidato/drift_referencia.json",
+  "distribuciones_actuales": {
+    "n": 123,
+    "conteos_clases": {
+      "negativo": 47,
+      "neutral": 44,
+      "positivo": 32
+    },
+    "conteos_longitud": {
+      "0-9": 1,
+      "10-24": 14,
+      "25-49": 56,
+      "50-99": 52,
+      "100+": 0
+    }
+  },
+  "diagnostico": {
+    "estado": "sin_alerta",
+    "n": 123,
+    "umbral_heuristico": 0.2,
+    "psi_clases": 0.006008566912708876,
+    "psi_longitud": 0.07708340684639356,
+    "nota": "PSI no mide exactitud ni sustituye revisión humana con etiquetas reales."
+  }
+}

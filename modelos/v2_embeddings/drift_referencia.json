@@ -1,0 +1,18 @@
+{
+  "n": 490,
+  "conteos_clases": {
+    "negativo": 175,
+    "neutral": 171,
+    "positivo": 144
+  },
+  "conteos_longitud": {
+    "0-9": 4,
+    "10-24": 60,
+    "25-49": 247,
+    "50-99": 173,
+    "100+": 6
+  },
+  "version_modelo": "v2_embeddings-2026-11-17-14899a9d",
+  "sha256_modelo": "14899a9df17e3f479789ad21e9d4a2662d0c0bef8665b3d0d7c94d76494e182d",
+  "origen": "predicciones en entrenamiento, referencia exploratoria"
+}
