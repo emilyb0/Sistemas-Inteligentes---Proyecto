@@ -1,0 +1,19 @@
+{
+  "procedencia": "Archivo aportado por usuario. Corrección de id_unico (archivo_semestre_id). No se alteraron comentarios ni etiquetas.",
+  "fuente_original": "comentarios_limpio(1).csv",
+  "sha256_dataset_original": "435b325da6a6ab34f6d31afb354af0c53698193c640431fe5f8c4df70c0a8a5e",
+  "dataset_entrenamiento": "comentarios_limpio_ids_ok.csv",
+  "sha256_dataset": "7ef215fcfcd62f6d8c80155667a6b83874efc7fc7087b1d1456838247588f146",
+  "n_registros": 613,
+  "cambio": "id_unico reescrito para evitar 5 duplicados; todo lo demás permanece igual",
+  "pipeline_objetivo": {
+    "C": 0.3,
+    "pasos": [
+      "limpieza",
+      "embeddings",
+      "clf"
+    ],
+    "estado": "pendiente_de_entrenamiento_con_encoder_real"
+  },
+  "retencion": "No publicar datos crudos en repositorio público"
+}
